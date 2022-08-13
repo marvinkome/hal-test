@@ -4,8 +4,8 @@ import { ChakraProvider, extendTheme } from "@chakra-ui/react";
 
 const theme = extendTheme({
   fonts: {
-    body: "'Nunito', sans-serif",
-    heading: "'Nunito', sans-serif",
+    body: "'Nunito Sans', sans-serif",
+    heading: "'Nunito Sans', sans-serif",
   },
   styles: {
     global: {
