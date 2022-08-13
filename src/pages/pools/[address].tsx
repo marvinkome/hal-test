@@ -1,4 +1,5 @@
 import NextLink from "next/link";
+import { GetStaticProps } from "next";
 import {
   chakra,
   Container,
@@ -20,8 +21,30 @@ import {
 } from "@chakra-ui/react";
 import { GrFormPreviousLink, GrLinkNext, GrLinkPrevious } from "react-icons/gr";
 import { HiStar } from "react-icons/hi";
+import { GRAPHQL_ENDPOINT } from "config";
+import { formatCurrency, formatNumber, getLogoUrl } from "libs/utils";
 
-const Page = () => {
+const Transactions = () => {
+  return null;
+};
+
+type PageProps = {
+  pool: {
+    id: string;
+    txCount: string;
+    token0Price: string;
+    token1Price: string;
+    token0: {
+      id: string;
+      symbol: string;
+    };
+    token1: {
+      id: string;
+      symbol: string;
+    };
+  };
+};
+const Page = ({ pool }: PageProps) => {
   return (
     <Container maxW="container.lg" py={12}>
       {/* back button */}
@@ -34,12 +57,12 @@ const Page = () => {
       <Stack direction={{ base: "column", md: "row" }} mt={4} alignItems={{ md: "center" }} spacing={4} justifyContent="space-between">
         <Stack direction="row" spacing={4} alignItems="center">
           <AvatarGroup size={{ base: "sm", md: "md" }} max={2}>
-            <Avatar name="Ryan Florence" src="https://bit.ly/ryan-florence" />
-            <Avatar name="Segun Adebayo" src="https://bit.ly/sage-adebayo" />
+            <Avatar name={pool.token0.symbol} src={getLogoUrl(pool.token0.id)} />
+            <Avatar name={pool.token1.symbol} src={getLogoUrl(pool.token1.id)} />
           </AvatarGroup>
 
           <Heading as="h1" fontSize={{ base: "2xl", md: "3xl" }}>
-            USDC/ETH
+            {pool.token0.symbol}/{pool.token1.symbol}
           </Heading>
         </Stack>
 
@@ -52,22 +75,22 @@ const Page = () => {
 
       <Stack mt={{ base: 8, md: 6 }} spacing={4} w="fit-content" direction={{ base: "column", md: "row" }}>
         <Stack alignItems="center" direction="row" shadow="base" bgColor="whiteAlpha.800" px={4} py={2} rounded="xl">
-          <Avatar size="xs" name="Ryan Florence" src="https://bit.ly/ryan-florence" />
+          <Avatar size="xs" name={pool.token0.symbol} src={getLogoUrl(pool.token0.id)} />
           <Text fontWeight="600" fontSize="sm">
-            1 USDC = $1.05
+            1 {pool.token0.symbol} = {formatCurrency(pool.token0Price)}
           </Text>
         </Stack>
 
         <Stack alignItems="center" direction="row" shadow="base" bgColor="whiteAlpha.800" px={4} py={2} rounded="xl">
-          <Avatar size="xs" name="Segun Adebayo" src="https://bit.ly/sage-adebayo" />
+          <Avatar size="xs" name={pool.token1.symbol} src={getLogoUrl(pool.token1.id)} />
           <Text fontWeight="600" fontSize="sm">
-            1 ETH = $5045.35
+            1 {pool.token1.symbol} = {formatCurrency(pool.token1Price)}
           </Text>
         </Stack>
 
         <Stack alignItems="center" direction="row" shadow="base" bgColor="whiteAlpha.800" px={4} py={2} rounded="xl">
           <Text fontWeight="600" fontSize="sm">
-            TX Count: 450
+            TX Count: {formatNumber(pool.txCount)}
           </Text>
         </Stack>
       </Stack>
@@ -122,7 +145,7 @@ const Page = () => {
               alignItems="center"
               gap={4}
               templateColumns={{ base: "2.5fr repeat(1, 1fr)", md: "3.5fr repeat(3, 1fr)" }}
-              _hover={{ opacity: ".6" }}
+              _hover={{ fontWeight: "600" }}
             >
               <GridItem color="" overflow="hidden" whiteSpace="nowrap" textOverflow="ellipsis">
                 <NextLink href="https://etherscan.io/tx/0x2f93dd56cd9caec9146ffd55c02ce8739117c97cf3e713ca288c20682bc1c252" passHref>
@@ -158,6 +181,52 @@ const Page = () => {
       </Stack>
     </Container>
   );
+};
+
+export function getStaticPaths() {
+  return { paths: [], fallback: "blocking" };
+}
+export const getStaticProps: GetStaticProps = async ({ params }) => {
+  const address = (params || {}).address;
+  if (!address) {
+    console.error("No address passed in query");
+    return { notFound: true };
+  }
+
+  const query = `
+    {
+      pool(id: "${address}") {
+        id
+        txCount
+        token0Price
+        token1Price
+        token0 {
+          id
+          symbol
+        }
+        token1 {
+          id
+          symbol
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+  const { data, errors } = await response.json();
+
+  if (errors && errors[0]) {
+    throw new Error(errors[0].message);
+  }
+
+  return {
+    props: {
+      pool: data.pool,
+    },
+  };
 };
 
 export default Page;

@@ -11,7 +11,7 @@ export function getLogoUrl(address: string) {
   }
 }
 
-export function formatNumber(number: number, compact = true, fractionDigits = 0) {
+export function formatNumber(number: number | string, compact = true, fractionDigits = 0) {
   const value = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: fractionDigits,
     ...(compact ? { notation: "compact", compactDisplay: "short" } : {}),

@@ -53,7 +53,12 @@ const AllPools = () => {
         body: JSON.stringify({ query }),
       });
 
-      return response.json();
+      const { data, errors } = await response.json();
+      if (errors && errors[0]) {
+        throw new Error(errors[0].message);
+      }
+
+      return data;
     },
   });
 
@@ -95,7 +100,7 @@ const AllPools = () => {
       </Grid>
 
       {/* body */}
-      {data?.data?.pools.map((pool: any) => (
+      {data?.pools.map((pool: any) => (
         <LinkBox
           as={Grid}
           key={pool.id}
