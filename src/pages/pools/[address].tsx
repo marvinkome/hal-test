@@ -148,7 +148,7 @@ const Transactions = ({ poolId }: { poolId: string }) => {
   const activeData = React.useMemo(() => {
     if (!data) return [];
 
-    const multiplier = 10 * activePage;
+    const multiplier = MAX_ITEMS * activePage;
     return data?.sort((a, b) => b.timestamp - a.timestamp).slice(multiplier, MAX_ITEMS + multiplier);
   }, [data, activePage]);
 

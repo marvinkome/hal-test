@@ -75,7 +75,7 @@ const SavedPools = () => {
   const activeData = React.useMemo(() => {
     if (!data) return [];
 
-    const multiplier = 10 * activePage;
+    const multiplier = MAX_ITEMS * activePage;
     return data?.pools.slice(multiplier, MAX_ITEMS + multiplier);
   }, [data, activePage, MAX_ITEMS]);
 
@@ -237,7 +237,7 @@ const AllPools = () => {
   const activeData = React.useMemo(() => {
     if (!data) return [];
 
-    const multiplier = 10 * activePage;
+    const multiplier = MAX_ITEMS * activePage;
     return data?.pools.slice(multiplier, MAX_ITEMS + multiplier);
   }, [data, activePage, MAX_ITEMS]);
 
