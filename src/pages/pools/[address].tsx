@@ -20,6 +20,7 @@ import {
   LinkOverlay,
   StackDivider,
   Select,
+  CircularProgress,
 } from "@chakra-ui/react";
 import { GrFormPreviousLink, GrLinkNext, GrLinkPrevious } from "react-icons/gr";
 import { HiStar } from "react-icons/hi";
@@ -43,12 +44,13 @@ const Transactions = ({ poolId }: { poolId: string }) => {
   const [activePage, setActivePage] = React.useState(0);
   const [maxPage, setMaxPage] = React.useState(0);
 
-  const { isLoading, isError, data } = useQuery({
+  const { isLoading, isError, isFetching, data } = useQuery({
     keepPreviousData: true,
-    queryKey: ["pool-transactions", poolId],
+    staleTime: 1000 * 60 * 0.5,
+    queryKey: ["pool-transactions", poolId, filteredTransactionType],
     queryFn: async () => {
       const mintsQuery = `
-        mints(where: { pool: $address }, orderBy: timestamp, orderDirection: desc, first: 100) {
+        mints(where: { pool: $address }, orderBy: timestamp, orderDirection: desc, first: $first) {
           id
           timestamp  
           __typename
@@ -67,7 +69,7 @@ const Transactions = ({ poolId }: { poolId: string }) => {
       `;
 
       const burnsQuery = `
-        burns(where: { pool: $address }, orderBy: timestamp, orderDirection: desc, first: 100) {
+        burns(where: { pool: $address }, orderBy: timestamp, orderDirection: desc, first: $first) {
           id
           timestamp  
           __typename
@@ -86,7 +88,7 @@ const Transactions = ({ poolId }: { poolId: string }) => {
       `;
 
       const swapsQuery = `
-        swaps(where: { pool: $address }, orderBy: timestamp, orderDirection: desc, first: 100) {
+        swaps(where: { pool: $address }, orderBy: timestamp, orderDirection: desc, first: $first) {
           id
           timestamp  
           __typename
@@ -105,16 +107,22 @@ const Transactions = ({ poolId }: { poolId: string }) => {
       `;
 
       let query = `
-        query transactions($address: Bytes!) {
-          ${mintsQuery}
-          ${burnsQuery}
-          ${swapsQuery}
+        query transactions($address: Bytes!, $first: Int!) {
+          ${filteredTransactionType === TransactionTypes.ALL || filteredTransactionType === TransactionTypes.ADD ? mintsQuery : ""}
+          ${filteredTransactionType === TransactionTypes.ALL || filteredTransactionType === TransactionTypes.REMOVE ? burnsQuery : ""}
+          ${filteredTransactionType === TransactionTypes.ALL || filteredTransactionType === TransactionTypes.SWAP ? swapsQuery : ""}
         }
       `;
 
       const response = await fetch(GRAPHQL_ENDPOINT, {
         method: "POST",
-        body: JSON.stringify({ query, variables: { address: poolId } }),
+        body: JSON.stringify({
+          query,
+          variables: {
+            address: poolId,
+            first: filteredTransactionType === TransactionTypes.ALL ? 100 : 300,
+          },
+        }),
       });
 
       const { data, errors } = await response.json();
@@ -122,7 +130,7 @@ const Transactions = ({ poolId }: { poolId: string }) => {
         throw new Error(errors[0].message);
       }
 
-      return [...data.mints, ...data.burns, ...data.swaps].map((t) => ({
+      return [...(data.mints || []), ...(data.burns || []), ...(data.swaps || [])].map((t) => ({
         ...t,
         type: ({ Mint: TransactionTypes.ADD, Burn: TransactionTypes.REMOVE, Swap: TransactionTypes.SWAP } as any)[t.__typename],
       }));
@@ -143,6 +151,11 @@ const Transactions = ({ poolId }: { poolId: string }) => {
     return data?.sort((a, b) => b.timestamp - a.timestamp).slice(multiplier, MAX_ITEMS + multiplier);
   }, [data, activePage]);
 
+  const onSelectOption = (option: TransactionTypes) => {
+    setFilteredTransactionType(option);
+    setActivePage(0);
+  };
+
   return (
     <Stack mt={8} spacing={4}>
       <Stack direction="row" alignItems="center" spacing={4} justify={{ base: "space-between", md: "flex-start" }}>
@@ -150,12 +163,21 @@ const Transactions = ({ poolId }: { poolId: string }) => {
           Transactions
         </Heading>
 
-        <Select w="auto" size="sm" rounded="lg" placeholder="Select option">
-          <option value="all">All</option>
-          <option value="swaps">Swaps</option>
-          <option value="adds">Adds</option>
-          <option value="removes">Removes</option>
+        <Select
+          w="auto"
+          size="sm"
+          rounded="lg"
+          placeholder="Select option"
+          value={filteredTransactionType}
+          onChange={(e) => onSelectOption(e.target.value as TransactionTypes)}
+        >
+          <option value={TransactionTypes.ALL}>All</option>
+          <option value={TransactionTypes.SWAP}>Swaps</option>
+          <option value={TransactionTypes.ADD}>Adds</option>
+          <option value={TransactionTypes.REMOVE}>Removes</option>
         </Select>
+
+        {data && isFetching && !isLoading && <CircularProgress isIndeterminate size="22px" color="gray.400" />}
       </Stack>
 
       <Stack shadow="base" bgColor="whiteAlpha.800" px={4} py={4} rounded="xl">
