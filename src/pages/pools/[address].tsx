@@ -23,10 +23,11 @@ import {
   CircularProgress,
 } from "@chakra-ui/react";
 import { GrFormPreviousLink, GrLinkNext, GrLinkPrevious } from "react-icons/gr";
-import { HiStar } from "react-icons/hi";
+import { AiOutlineStar, AiFillStar } from "react-icons/ai";
 import { GRAPHQL_ENDPOINT } from "config";
 import { formatCurrency, formatNumber, getLogoUrl } from "libs/utils";
 import { useQuery } from "@tanstack/react-query";
+import { useWatchList } from "hooks/use-watchlist";
 
 import dayjsRelativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(dayjsRelativeTime);
@@ -140,7 +141,7 @@ const Transactions = ({ poolId }: { poolId: string }) => {
   React.useEffect(() => {
     if (data?.length) {
       let extraPage = data?.length % MAX_ITEMS === 0 ? 0 : 1;
-      setMaxPage(data?.length / MAX_ITEMS + extraPage);
+      setMaxPage(Math.floor(data?.length / MAX_ITEMS) + extraPage);
     }
   }, [data?.length]);
 
@@ -266,6 +267,7 @@ const Transactions = ({ poolId }: { poolId: string }) => {
                 variant="ghost"
                 size="sm"
                 aria-label="prev-list"
+                colorScheme="purple"
                 icon={<GrLinkPrevious />}
                 isDisabled={activePage === 0}
                 onClick={() => setActivePage(activePage - 1)}
@@ -277,6 +279,7 @@ const Transactions = ({ poolId }: { poolId: string }) => {
                 variant="ghost"
                 size="sm"
                 aria-label="next-list"
+                colorScheme="purple"
                 icon={<GrLinkNext />}
                 isDisabled={activePage + 1 === maxPage}
                 onClick={() => setActivePage(activePage + 1)}
@@ -306,11 +309,13 @@ type PageProps = {
   };
 };
 const Page = ({ pool }: PageProps) => {
+  const watchlist = useWatchList();
+
   return (
     <Container maxW="container.lg" py={12}>
       {/* back button */}
       <NextLink href="/" passHref>
-        <Button variant="link" as={Link} leftIcon={<GrFormPreviousLink />}>
+        <Button colorScheme="purple" variant="link" as={Link} leftIcon={<GrFormPreviousLink />}>
           Back to pools
         </Button>
       </NextLink>
@@ -328,8 +333,13 @@ const Page = ({ pool }: PageProps) => {
         </Stack>
 
         <chakra.div>
-          <Button lineHeight="1" leftIcon={<Icon as={HiStar} />}>
-            Add to watchlist
+          <Button
+            colorScheme="purple"
+            lineHeight="1"
+            leftIcon={<Icon as={watchlist.items.includes(pool.id) ? AiFillStar : AiOutlineStar} />}
+            onClick={() => watchlist.toggleItem(pool.id)}
+          >
+            {watchlist.items.includes(pool.id) ? "Remove from watchlist" : "Add to watchlist"}
           </Button>
         </chakra.div>
       </Stack>

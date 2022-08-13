@@ -12,25 +12,29 @@ import {
   AvatarGroup,
   LinkBox,
   LinkOverlay,
-  Button,
-  CircularProgress,
+  IconButton,
 } from "@chakra-ui/react";
 import { GrLinkPrevious, GrLinkNext } from "react-icons/gr";
 import { useQuery } from "@tanstack/react-query";
+import { useWatchList } from "hooks/use-watchlist";
 import { GRAPHQL_ENDPOINT } from "config";
 import { formatCurrency, formatNumber, getLogoUrl } from "libs/utils";
 
-let MAX_ITEMS = 10;
+const SavedPools = () => {
+  let MAX_ITEMS = 5;
 
-const AllPools = () => {
+  const watchlist = useWatchList();
+
   const [activePage, setActivePage] = React.useState(0);
-  const { isLoading, isError, data, isFetching } = useQuery({
+  const [maxPage, setMaxPage] = React.useState(0);
+
+  const { isLoading, isError, data } = useQuery({
     keepPreviousData: true,
-    queryKey: ["pools", activePage],
+    queryKey: ["pool-watchlist", watchlist.items],
     queryFn: async () => {
       const query = `
         {
-          pools(first: 10, skip: ${10 * activePage}, orderBy: totalValueLockedUSD, orderDirection: desc) {
+          pools(where: { id_in: [${[...watchlist.items.map((p) => `"${p}"`)]}] }, orderBy: totalValueLockedUSD, orderDirection: desc) {
             id
             txCount
             totalValueLockedUSD
@@ -60,6 +64,182 @@ const AllPools = () => {
       return data;
     },
   });
+
+  React.useEffect(() => {
+    if (data?.pools.length) {
+      let extraPage = data?.pools.length % MAX_ITEMS === 0 ? 0 : 1;
+      setMaxPage(Math.floor(data?.pools.length / MAX_ITEMS) + extraPage);
+    }
+  }, [data?.pools.length, MAX_ITEMS]);
+
+  const activeData = React.useMemo(() => {
+    if (!data) return [];
+
+    const multiplier = 10 * activePage;
+    return data?.pools.slice(multiplier, MAX_ITEMS + multiplier);
+  }, [data, activePage, MAX_ITEMS]);
+
+  if (isError) {
+    return <Text color="rgb(0 0 0 / 70%)">Error loading saved pools</Text>;
+  }
+
+  if (isLoading || !data) {
+    return <Text color="rgb(0 0 0 / 70%)">Loading saved pools...</Text>;
+  }
+
+  if (data?.pools.length === 0) {
+    return <Text color="rgb(0 0 0 / 70%)">Your saved pool will appear here</Text>;
+  }
+
+  return (
+    <Stack divider={<StackDivider borderColor="rgb(0 0 0 / 4%)" />}>
+      {/* header */}
+      <Grid templateColumns={{ base: "2.5fr repeat(1, 1fr)", md: "3.5fr repeat(3, 1fr)" }} alignItems="center">
+        <GridItem>
+          <Text fontSize="sm" color="rgb(0 0 0 / 65%)">
+            Pool
+          </Text>
+        </GridItem>
+
+        <GridItem display={{ base: "none", md: "flex" }} justifyContent="center">
+          <Text fontSize="sm" color="rgb(0 0 0 / 65%)">
+            TX Count
+          </Text>
+        </GridItem>
+
+        <GridItem display={{ base: "none", md: "flex" }} justifyContent="center">
+          <Text fontSize="sm" color="rgb(0 0 0 / 65%)">
+            TVL
+          </Text>
+        </GridItem>
+
+        <GridItem display="flex" justifyContent="center">
+          <Text fontSize="sm" color="rgb(0 0 0 / 65%)">
+            Volume
+          </Text>
+        </GridItem>
+      </Grid>
+
+      {/* body */}
+      {activeData.map((pool: any) => (
+        <LinkBox
+          as={Grid}
+          key={pool.id}
+          templateColumns={{ base: "2.5fr repeat(1, 1fr)", md: "3.5fr repeat(3, 1fr)" }}
+          alignItems="center"
+          _hover={{ fontWeight: "600" }}
+        >
+          <GridItem as={Stack} direction="row" spacing={3} alignItems="center">
+            <AvatarGroup size="sm" max={2}>
+              <Avatar name={pool.token0.symbol} src={getLogoUrl(pool.token0.id)} />
+              <Avatar name={pool.token1.symbol} src={getLogoUrl(pool.token1.id)} />
+            </AvatarGroup>
+
+            <NextLink href={`/pools/${pool.id}`} passHref>
+              <LinkOverlay>
+                {pool.token0.symbol}/{pool.token1.symbol}
+              </LinkOverlay>
+            </NextLink>
+          </GridItem>
+
+          <GridItem display={{ base: "none", md: "flex" }} justifyContent="center">
+            <Text>{formatNumber(pool.txCount)}</Text>
+          </GridItem>
+
+          <GridItem display={{ base: "none", md: "flex" }} justifyContent="center">
+            <Text>{formatCurrency(pool.totalValueLockedUSD)}</Text>
+          </GridItem>
+
+          <GridItem display="flex" justifyContent="center">
+            <Text>{formatCurrency(pool.volumeUSD)}</Text>
+          </GridItem>
+        </LinkBox>
+      ))}
+
+      {/* footer */}
+      <Stack direction="row" alignItems="center" justifyContent="center" pt={2} spacing={4}>
+        <IconButton
+          variant="ghost"
+          size="sm"
+          aria-label="prev-list"
+          colorScheme="purple"
+          icon={<GrLinkPrevious />}
+          isDisabled={activePage === 0}
+          onClick={() => setActivePage(activePage - 1)}
+        />
+        <Text color="rgb(0 0 0 / 65%)" fontSize="sm">
+          Page {activePage + 1} of {maxPage}
+        </Text>
+        <IconButton
+          variant="ghost"
+          size="sm"
+          aria-label="next-list"
+          colorScheme="purple"
+          icon={<GrLinkNext />}
+          isDisabled={activePage + 1 === maxPage}
+          onClick={() => setActivePage(activePage + 1)}
+        />
+      </Stack>
+    </Stack>
+  );
+};
+
+const AllPools = () => {
+  let MAX_ITEMS = 10;
+
+  const [activePage, setActivePage] = React.useState(0);
+  const [maxPage, setMaxPage] = React.useState(0);
+
+  const { isLoading, isError, data } = useQuery({
+    keepPreviousData: true,
+    queryKey: ["pools"],
+    queryFn: async () => {
+      const query = `
+        {
+          pools(first: 100, orderBy: totalValueLockedUSD, orderDirection: desc) {
+            id
+            txCount
+            totalValueLockedUSD
+            volumeUSD
+            token0 {
+              id
+              symbol
+            }
+            token1 {
+              id
+              symbol
+            }
+          }
+        }
+      `;
+
+      const response = await fetch(GRAPHQL_ENDPOINT, {
+        method: "POST",
+        body: JSON.stringify({ query }),
+      });
+
+      const { data, errors } = await response.json();
+      if (errors && errors[0]) {
+        throw new Error(errors[0].message);
+      }
+
+      return data;
+    },
+  });
+
+  React.useEffect(() => {
+    if (data?.pools.length) {
+      let extraPage = data?.pools.length % MAX_ITEMS === 0 ? 0 : 1;
+      setMaxPage(Math.floor(data?.pools.length / MAX_ITEMS) + extraPage);
+    }
+  }, [data?.pools.length, MAX_ITEMS]);
+
+  const activeData = React.useMemo(() => {
+    if (!data) return [];
+
+    const multiplier = 10 * activePage;
+    return data?.pools.slice(multiplier, MAX_ITEMS + multiplier);
+  }, [data, activePage, MAX_ITEMS]);
 
   if (isError) {
     return <Text>Error loading pools, please refresh the page</Text>;
@@ -99,7 +279,7 @@ const AllPools = () => {
       </Grid>
 
       {/* body */}
-      {data?.pools.map((pool: any) => (
+      {activeData.map((pool: any) => (
         <LinkBox
           as={Grid}
           key={pool.id}
@@ -136,33 +316,27 @@ const AllPools = () => {
 
       {/* footer */}
       <Stack direction="row" alignItems="center" justifyContent="center" pt={2} spacing={4}>
-        {data && isFetching ? (
-          <CircularProgress isIndeterminate size="32px" color="gray.400" />
-        ) : (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="prev-list"
-              isLoading={isFetching}
-              leftIcon={<GrLinkPrevious />}
-              isDisabled={activePage === 0}
-              onClick={() => setActivePage(activePage - 1)}
-            >
-              Prev
-            </Button>
-            <Button
-              isLoading={isFetching}
-              variant="ghost"
-              size="sm"
-              aria-label="next-list"
-              rightIcon={<GrLinkNext />}
-              onClick={() => setActivePage(activePage + 1)}
-            >
-              Next
-            </Button>
-          </>
-        )}
+        <IconButton
+          variant="ghost"
+          size="sm"
+          aria-label="prev-list"
+          colorScheme="purple"
+          icon={<GrLinkPrevious />}
+          isDisabled={activePage === 0}
+          onClick={() => setActivePage(activePage - 1)}
+        />
+        <Text color="rgb(0 0 0 / 65%)" fontSize="sm">
+          Page {activePage + 1} of {maxPage}
+        </Text>
+        <IconButton
+          variant="ghost"
+          size="sm"
+          aria-label="next-list"
+          colorScheme="purple"
+          icon={<GrLinkNext />}
+          isDisabled={activePage + 1 === maxPage}
+          onClick={() => setActivePage(activePage + 1)}
+        />
       </Stack>
     </Stack>
   );
@@ -179,7 +353,7 @@ const Page = () => {
           </Heading>
 
           <Stack shadow="base" bgColor="whiteAlpha.800" px={4} py={4} rounded="xl" divider={<StackDivider borderColor="rgb(0 0 0 / 5%)" />}>
-            <Text color="rgb(0 0 0 / 70%)">Your saved pool will appear here</Text>
+            <SavedPools />
           </Stack>
         </Stack>
 
