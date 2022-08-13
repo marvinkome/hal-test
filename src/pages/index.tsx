@@ -10,7 +10,6 @@ import {
   GridItem,
   Avatar,
   AvatarGroup,
-  IconButton,
   LinkBox,
   LinkOverlay,
   Button,
@@ -62,12 +61,12 @@ const AllPools = () => {
     },
   });
 
-  if (isLoading || !data) {
-    return <Text>Loading pools...</Text>;
-  }
-
   if (isError) {
     return <Text>Error loading pools, please refresh the page</Text>;
+  }
+
+  if (isLoading || !data) {
+    return <Text>Loading pools...</Text>;
   }
 
   return (
